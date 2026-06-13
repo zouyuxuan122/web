@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEFERT — 数字炼金术 / Digital Alchemy</title>
+<meta name="description" content="Nefert 个人开发者档案 · 前卫交互 · 3D 流体 · 非线性叙事" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Inter:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============ RESET ============ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#050507;color:#f5f5f7;overflow-x:hidden;cursor:none;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+::selection{background:#ff2e63;color:#050507}
+a{color:inherit;text-decoration:none}
+button{font:inherit;background:none;border:0;color:inherit;cursor:none}
+
+/* ============ ROOT VARIABLES ============ */
+:root{
+  --bg:#050507;
+  --ink:#f5f5f7;
+  --dim:#7a7a85;
+  --line:rgba(245,245,247,.08);
+  --neon:#ff2e63;
+  --cyan:#08f7fe;
+  --violet:#b967ff;
+  --acid:#c2ff3a;
+  --serif:'Cormorant Garamond',serif;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Inter',sans-serif;
+}
+
+/* ============ 3D FLUID CANVAS ============ */
+#fluid-canvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;opacity:.55;
+  mix-blend-mode:normal;
+  filter:saturate(.45) brightness(.7);
+}
+
+/* ============ CUSTOM CURSOR ============ */
+.cursor{
+  position:fixed;top:0;left:0;width:8px;height:8px;
+  background:var(--neon);border-radius:50%;
+  pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);
+  mix-blend-mode:difference;
+  transition:width .25s ease,height .25s ease,background .25s ease;
+}
+.cursor-ring{
+  position:fixed;top:0;left:0;width:42px;height:42px;
+  border:1px solid var(--ink);border-radius:50%;
+  pointer-events:none;z-index:9998;
+  transform:translate(-50%,-50%);
+  transition:transform .15s ease-out,width .25s ease,height .25s ease,border-color .25s ease;
+}
+.cursor.hover{width:60px;height:60px;background:var(--cyan)}
+.cursor-ring.hover{width:80px;height:80px;border-color:var(--cyan)}
+
+/* ============ NOISE OVERLAY ============ */
+.noise{
+  position:fixed;inset:-50%;width:200%;height:200%;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity:.45;mix-blend-mode:overlay;pointer-events:none;z-index:5;
+  animation:grain 1.2s steps(6) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}
+  20%{transform:translate(-2%,1%)}
+  40%{transform:translate(1%,-2%)}
+  60%{transform:translate(-1%,2%)}
+  80%{transform:translate(2%,-1%)}
+  100%{transform:translate(0,0)}
+}
+
+/* ============ NAV ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:1.6rem 2.4rem;
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+  mix-blend-mode:difference;
+}
+nav .logo{font-weight:700;color:var(--ink)}
+nav .logo span{color:var(--neon)}
+nav ul{display:flex;gap:2rem;list-style:none}
+nav ul a{position:relative;opacity:.7;transition:opacity .3s,color .3s}
+nav ul a:hover{opacity:1;color:var(--cyan)}
+nav .time{color:var(--dim)}
+
+/* ============ HERO ============ */
+.hero{
+  position:relative;min-height:100vh;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6rem 4rem 2rem;
+  overflow:hidden;
+}
+.hero-left{
+  position:relative;z-index:10;
+  max-width:60%;
+}
+.hero-tag{
+  font-family:var(--mono);font-size:.75rem;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--cyan);
+  display:inline-flex;align-items:center;gap:.8rem;
+  margin-bottom:2.2rem;
+}
+.hero-tag::before{content:"";width:42px;height:1px;background:var(--cyan)}
+
+h1.glitch{
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(4rem,11vw,11rem);
+  line-height:.9;letter-spacing:-.04em;
+  color:var(--ink);
+  position:relative;
+}
+h1.glitch em{font-style:italic;color:var(--neon);font-weight:500}
+h1.glitch .row{display:block;overflow:hidden}
+h1.glitch .row span{display:inline-block;transform:translateY(110%);animation:rise 1.2s cubic-bezier(.2,.8,.2,1) forwards}
+h1.glitch .row:nth-child(1) span{animation-delay:.1s}
+h1.glitch .row:nth-child(2) span{animation-delay:.3s}
+h1.glitch .row:nth-child(3) span{animation-delay:.5s}
+h1.glitch .row:nth-child(4) span{animation-delay:.7s}
+@keyframes rise{to{transform:translateY(0)}}
+
+.hero-sub{
+  margin-top:2.4rem;max-width:38ch;
+  font-size:1.05rem;line-height:1.7;color:var(--dim);
+  opacity:0;animation:fadeIn 1s .9s forwards;
+}
+@keyframes fadeIn{to{opacity:1}}
+
+.hero-right{
+  position:relative;z-index:10;
+  width:340px;align-self:flex-end;margin-bottom:4rem;
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.15em;
+  text-transform:uppercase;
+}
+.hero-right .meta-row{
+  display:flex;justify-content:space-between;
+  padding:.55rem 0;border-bottom:1px solid var(--line);
+}
+.hero-right .meta-row span:last-child{color:var(--ink)}
+.hero-right .meta-row.head{color:var(--neon);border-bottom-color:var(--neon)}
+
+.scroll-hint{
+  position:absolute;left:50%;bottom:2.2rem;transform:translateX(-50%);
+  font-family:var(--mono);font-size:.65rem;letter-spacing:.4em;
+  text-transform:uppercase;color:var(--dim);
+  display:flex;flex-direction:column;align-items:center;gap:.8rem;
+  z-index:10;
+}
+.scroll-hint .line{
+  width:1px;height:54px;background:linear-gradient(to bottom,var(--ink),transparent);
+  animation:drip 2.4s ease-in-out infinite;
+}
+@keyframes drip{0%,100%{transform:scaleY(.4);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}}
+
+/* ============ MARQUEE ============ */
+.marquee{
+  position:relative;z-index:6;
+  padding:1.6rem 0;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  overflow:hidden;
+  font-family:var(--serif);font-style:italic;font-weight:300;
+  font-size:clamp(2.4rem,6vw,5.4rem);line-height:1;
+  color:transparent;
+  -webkit-text-stroke:1px var(--ink);
+  white-space:nowrap;
+}
+.marquee .track{display:flex;gap:3rem;animation:slide 32s linear infinite}
+.marquee .track span{display:inline-flex;align-items:center;gap:3rem}
+.marquee .track em{color:var(--neon);-webkit-text-stroke:0;font-style:normal}
+.marquee .dot{width:18px;height:18px;border-radius:50%;background:var(--cyan);display:inline-block}
+@keyframes slide{to{transform:translateX(-50%)}}
+
+/* ============ SECTIONS ============ */
+section{position:relative;z-index:6;padding:8rem 4rem}
+
+.section-head{
+  display:grid;grid-template-columns:1fr 2fr;gap:4rem;
+  margin-bottom:6rem;align-items:flex-end;
+}
+.section-eyebrow{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--cyan);
+  display:flex;align-items:center;gap:1rem;
+}
+.section-eyebrow::before{content:"";width:36px;height:1px;background:var(--cyan)}
+.section-title{
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(2.6rem,5.6vw,5rem);line-height:1;letter-spacing:-.03em;
+}
+.section-title em{font-style:italic;color:var(--violet);font-weight:500}
+
+/* ============ PROJECT PANELS ============ */
+.projects{position:relative}
+.projects::before{
+  content:"";position:absolute;top:0;bottom:0;left:50%;
+  width:1px;background:linear-gradient(to bottom,transparent,var(--line) 20%,var(--line) 80%,transparent);
+}
+.proj{
+  position:relative;
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:0;margin-bottom:3rem;
+  /* base = invisible */
+  opacity:0;
+  will-change:transform,opacity,filter;
+}
+.proj.odd{
+  transform:translate(-140px, 80px) rotate(-6deg) scale(.88);
+  filter:blur(10px);
+  transition:opacity 1.1s cubic-bezier(.16,1,.3,1),
+             transform 1.3s cubic-bezier(.16,1,.3,1),
+             filter 1.1s cubic-bezier(.16,1,.3,1);
+}
+.proj.even{
+  transform:translate(140px,-80px) rotate(6deg) scale(.88);
+  filter:blur(10px);
+  transition:opacity 1.1s cubic-bezier(.16,1,.3,1),
+             transform 1.3s cubic-bezier(.16,1,.3,1),
+             filter 1.1s cubic-bezier(.16,1,.3,1);
+}
+.proj.in{
+  opacity:1;
+  transform:translate(0,0) rotate(0) scale(1);
+  filter:blur(0);
+}
+/* inner children stagger — slide up + fade */
+.proj .proj-num,
+.proj .proj-cat,
+.proj .proj-name,
+.proj .proj-desc,
+.proj .proj-stack,
+.proj .proj-link{
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1);
+}
+.proj.in .proj-num    {opacity:1;transform:none;transition-delay:.55s}
+.proj.in .proj-cat    {opacity:1;transform:none;transition-delay:.65s}
+.proj.in .proj-name   {opacity:1;transform:none;transition-delay:.75s}
+.proj.in .proj-desc   {opacity:1;transform:none;transition-delay:.85s}
+.proj.in .proj-stack  {opacity:1;transform:none;transition-delay:.95s}
+.proj.in .proj-link   {opacity:1;transform:none;transition-delay:1.05s}
+/* stack tags pop one by one */
+.proj.in .proj-stack span{
+  animation:tagPop .55s cubic-bezier(.16,1,.3,1) backwards;
+}
+.proj.in .proj-stack span:nth-child(1){animation-delay:1.05s}
+.proj.in .proj-stack span:nth-child(2){animation-delay:1.12s}
+.proj.in .proj-stack span:nth-child(3){animation-delay:1.19s}
+.proj.in .proj-stack span:nth-child(4){animation-delay:1.26s}
+.proj.in .proj-stack span:nth-child(5){animation-delay:1.33s}
+.proj.in .proj-stack span:nth-child(6){animation-delay:1.40s}
+@keyframes tagPop{
+  from{opacity:0;transform:translateY(14px) scale(.6)}
+  to  {opacity:1;transform:none}
+}
+/* meta side also staggers in from opposite side */
+.proj .proj-meta{
+  opacity:0;
+  transition:opacity 1s cubic-bezier(.2,.8,.2,1),transform 1s cubic-bezier(.2,.8,.2,1);
+}
+.proj.odd .proj-meta{transform:translateX(60px)}
+.proj.even .proj-meta{transform:translateX(-60px)}
+.proj.in .proj-meta{opacity:1;transform:none;transition-delay:.35s}
+.proj.in .proj-num{ animation:numRise .9s cubic-bezier(.16,1,.3,1) backwards; }
+@keyframes numRise{
+  from{opacity:0;transform:translateY(40px) skewY(-8deg);filter:blur(6px)}
+  to  {opacity:1;transform:none;filter:blur(0)}
+}
+.proj-card{
+  position:relative;padding:3.2rem 3rem;
+  border:1px solid var(--line);
+  background:rgba(10,10,14,.55);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  overflow:hidden;
+  transition:border-color .5s,background .5s,transform .5s cubic-bezier(.2,.8,.2,1);
+}
+.proj.even .proj-card{grid-column:2}
+.proj.odd .proj-card{grid-column:1}
+.proj-meta{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:2rem 3rem;border:1px dashed var(--line);
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;
+}
+.proj.odd .proj-meta{grid-column:2;grid-row:1;border-left:0}
+.proj.even .proj-meta{grid-column:1;grid-row:1;border-right:0}
+.proj-num{
+  font-family:var(--serif);font-size:6rem;line-height:1;
+  color:var(--neon);font-weight:300;margin-bottom:1rem;
+}
+.proj-cat{color:var(--cyan);margin-bottom:1.2rem}
+.proj-cat::before{content:"◢ ";color:var(--neon)}
+.proj-name{
+  font-family:var(--serif);font-size:clamp(1.8rem,3vw,2.6rem);
+  line-height:1.05;letter-spacing:-.02em;font-weight:500;
+  margin-bottom:1.2rem;
+}
+.proj-name em{font-style:italic;color:var(--violet)}
+.proj-desc{
+  font-size:.96rem;line-height:1.7;color:var(--dim);
+  margin-bottom:1.6rem;
+}
+.proj-stack{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.4rem}
+.proj-stack span{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+  padding:.35rem .65rem;border:1px solid var(--line);
+  color:var(--ink);
+}
+.proj-stack span:nth-child(3n){color:var(--cyan);border-color:var(--cyan)}
+.proj-stack span:nth-child(3n+1){color:var(--neon);border-color:var(--neon)}
+.proj-link{
+  display:inline-flex;align-items:center;gap:.6rem;
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink);position:relative;
+  padding-bottom:.4rem;
+}
+.proj-link::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:0;background:var(--neon);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.proj-link:hover::after{width:100%}
+.proj-link .arrow{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.proj-link:hover .arrow{transform:translateX(8px)}
+
+.proj-card::before{
+  content:"";position:absolute;top:0;right:0;
+  width:120px;height:120px;
+  background:radial-gradient(circle at top right,var(--neon),transparent 60%);
+  opacity:0;transition:opacity .6s;
+}
+.proj-card:hover::before{opacity:.35}
+.proj-card:hover{border-color:rgba(255,46,99,.4);transform:translateY(-4px)}
+
+/* ============ PHILOSOPHY / ABOUT ============ */
+.about{
+  display:grid;grid-template-columns:1.2fr 1fr;gap:6rem;
+  align-items:center;
+}
+.about-text p{
+  font-family:var(--serif);font-size:clamp(1.4rem,2.2vw,2rem);
+  line-height:1.45;font-weight:300;letter-spacing:-.01em;
+}
+.about-text p + p{margin-top:1.6rem;color:var(--dim);font-size:clamp(1rem,1.3vw,1.2rem);line-height:1.75;font-family:var(--sans)}
+.about-text .accent{color:var(--neon);font-style:italic;font-weight:500}
+.about-visual{
+  position:relative;aspect-ratio:1/1;
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.about-visual::before{
+  content:"";position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(0deg,transparent 0,transparent 22px,var(--line) 22px,var(--line) 23px),
+    repeating-linear-gradient(90deg,transparent 0,transparent 22px,var(--line) 22px,var(--line) 23px);
+  opacity:.4;
+}
+.about-visual svg{width:78%;height:78%;position:relative;z-index:2;animation:rot 24s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.about-visual .lbl{
+  position:absolute;bottom:1.4rem;left:1.4rem;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--dim);
+}
+.about-visual .lblr{
+  position:absolute;top:1.4rem;right:1.4rem;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--cyan);
+}
+
+/* ============ STACK CLOUD ============ */
+.stack-cloud{
+  display:flex;flex-wrap:wrap;gap:1rem;
+  margin-top:3rem;justify-content:center;
+}
+.stack-cloud span{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;
+  padding:.6rem 1rem;border:1px solid var(--line);
+  transition:all .4s;
+}
+.stack-cloud span:hover{background:var(--ink);color:var(--bg);border-color:var(--ink);transform:rotate(-2deg)}
+
+/* ============ LINKS / CONTACT ============ */
+.contact{
+  border-top:1px solid var(--line);
+  text-align:center;position:relative;overflow:hidden;
+}
+.contact h2{
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(3.4rem,9vw,8.6rem);line-height:.95;letter-spacing:-.04em;
+  margin-bottom:3rem;
+}
+.contact h2 em{font-style:italic;color:var(--neon)}
+.contact-links{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:1.4rem;
+  margin-bottom:4rem;
+}
+.contact-links a{
+  display:inline-flex;align-items:center;gap:.8rem;
+  padding:1rem 1.6rem;
+  border:1px solid var(--ink);
+  font-family:var(--mono);font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;
+  position:relative;overflow:hidden;
+  transition:color .4s;
+}
+.contact-links a::before{
+  content:"";position:absolute;inset:0;background:var(--ink);
+  transform:translateY(100%);transition:transform .5s cubic-bezier(.2,.8,.2,1);z-index:-1;
+}
+.contact-links a:hover{color:var(--bg)}
+.contact-links a:hover::before{transform:translateY(0)}
+.contact-links a svg{width:14px;height:14px}
+
+/* ============ FOOTER ============ */
+footer{
+  position:relative;z-index:6;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:2rem 4rem;
+  font-family:var(--mono);font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dim);
+  border-top:1px solid var(--line);
+}
+footer .pulse{display:inline-flex;align-items:center;gap:.6rem}
+footer .pulse .dot{width:8px;height:8px;border-radius:50%;background:var(--neon);animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* ============ REVEAL ============ */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity 1s,transform 1s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:translateY(0)}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 980px){
+  nav{padding:1.2rem 1.4rem}
+  nav ul{display:none}
+  .hero{padding:6rem 1.4rem 2rem;flex-direction:column;align-items:flex-start;gap:3rem}
+  .hero-left{max-width:100%}
+  .hero-right{width:100%;margin-bottom:1rem}
+  section{padding:5rem 1.4rem}
+  .section-head{grid-template-columns:1fr;gap:1.4rem;margin-bottom:3rem}
+  .projects::before{display:none}
+  .proj,.proj.even{grid-template-columns:1fr;transform:translateX(0) skewX(0)}
+  .proj.even .proj-card, .proj.odd .proj-card{grid-column:1}
+  .proj.even .proj-meta, .proj.odd .proj-meta{grid-column:1;grid-row:auto;border:1px dashed var(--line);border-top:0}
+  .about{grid-template-columns:1fr;gap:2.4rem}
+  footer{padding:1.6rem 1.4rem;flex-direction:column;gap:.6rem;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- 3D FLUID BACKGROUND -->
+<canvas id="fluid-canvas"></canvas>
+
+<!-- NOISE -->
+<div class="noise"></div>
+
+<!-- CUSTOM CURSOR -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">NEFERT<span>·</span></div>
+  <ul>
+    <li><a href="#work">作品</a></li>
+    <li><a href="#about">自述</a></li>
+    <li><a href="#stack">技术</a></li>
+    <li><a href="#contact">联系</a></li>
+  </ul>
+  <div class="time" id="clock">--:--:--</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-tag">PERSONAL ARCHIVE · 2018 — ∞</div>
+    <h1 class="glitch">
+      <span class="row"><span>数字</span></span>
+      <span class="row"><span><em>炼金</em>术</span></span>
+      <span class="row"><span>·</span></span>
+      <span class="row"><span>Nefert</span></span>
+    </h1>
+    <p class="hero-sub">
+      一个把桌面、AI、视觉小说和小工具都揉在一起的独立开发者。
+      用代码做颜料，让机器有一点诗意。
+    </p>
+  </div>
+  <div class="hero-right">
+    <div class="meta-row head"><span>SHORT BIO</span><span>v.2026</span></div>
+    <div class="meta-row"><span>NAME</span><span>Nefert</span></div>
+    <div class="meta-row"><span>LOC</span><span>CN · 离线优先</span></div>
+    <div class="meta-row"><span>FOCUS</span><span>Desktop / AI</span></div>
+    <div class="meta-row"><span>STACK</span><span>Electron · Python</span></div>
+    <div class="meta-row"><span>STATUS</span><span style="color:var(--neon)">// SHIPPING</span></div>
+  </div>
+  <div class="scroll-hint">
+    <span>向下滚动 · SCROLL</span>
+    <div class="line"></div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee">
+  <div class="track">
+    <span>AI DESKTOP COMPANION <em>·</em> <span class="dot"></span></span>
+    <span>VISUAL NOVEL ENGINE <em>·</em> <span class="dot"></span></span>
+    <span>MCP SERVERS <em>·</em> <span class="dot"></span></span>
+    <span>GALGAME LAUNCHER <em>·</em> <span class="dot"></span></span>
+    <span>MULTI-AGENT DELIBERATION <em>·</em> <span class="dot"></span></span>
+    <span>RADAR VIDEO <em>·</em> <span class="dot"></span></span>
+    <span>AI DESKTOP COMPANION <em>·</em> <span class="dot"></span></span>
+    <span>VISUAL NOVEL ENGINE <em>·</em> <span class="dot"></span></span>
+    <span>MCP SERVERS <em>·</em> <span class="dot"></span></span>
+    <span>GALGAME LAUNCHER <em>·</em> <span class="dot"></span></span>
+    <span>MULTI-AGENT DELIBERATION <em>·</em> <span class="dot"></span></span>
+    <span>RADAR VIDEO <em>·</em> <span class="dot"></span></span>
+  </div>
+</div>
+
+<!-- PROJECTS -->
+<section class="projects" id="work">
+  <div class="section-head reveal">
+    <div class="section-eyebrow">§01 — 档案 / ARCHIVE</div>
+    <h2 class="section-title">从桌面 <em>到</em> 浏览器，<br/>到处留下一点痕迹。</h2>
+  </div>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">01</div>
+      <div class="proj-cat">ELECTRON · AI · DESKTOP</div>
+      <div>本地运行 · 模型可换 · 桌面伴侣</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小宣风月 <em>·</em> 清浅</h3>
+      <p class="proj-desc">基于 Enigma Protector 与 VoidNovelEngine 引擎打造的夏日主题视觉互动小说。把"游玩"和"陪伴"放进同一个壳里，本地可执行，带一丝蒸汽波气味的剧情体验。</p>
+      <div class="proj-stack">
+        <span>Enigma Protector</span><span>VoidNovelEngine</span><span>Electron</span><span>Visual Novel</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">02</div>
+      <div class="proj-cat">DESKTOP COMPANION · LLM</div>
+      <div>常驻桌面 · 记忆系统 · 角色养成</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小宣风月 <em>·</em> AI 桌面伴侣</h3>
+      <p class="proj-desc">常驻桌面的 AI 伴侣型应用，介于工具与"角色"之间。接驳多种大模型，自带上下文管理与情绪对话系统，目标是让你在写代码时桌边坐着一个不打扰的存在。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>TypeScript</span><span>LLM SDK</span><span>SQLite</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">03</div>
+      <div class="proj-cat">MULTI-AGENT · PARTY</div>
+      <div>多智能体 · 协同讨论 · 桌面推理</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">Super Agent Party</h3>
+      <p class="proj-desc">让多个 AI 智能体围坐一桌"开会"。通过多模型协同审议，缓解单一模型的短板，构建高性能、高可用的桌面级推理应用。多人辩论，一人裁决。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>Agent Orchestration</span><span>Prompt Engineering</span><span>WebSocket</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">04</div>
+      <div class="proj-cat">MONOREPO · CLAW</div>
+      <div>组件化 · 多端复用 · 实验场</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小宣风月 <em>·</em> Claw Monorepo</h3>
+      <p class="proj-desc">把桌面伴侣、视觉小说、Agent 模块整合到同一个 monorepo。一个仓库管理所有"小宣"系列工程，CI、构建、依赖统一化，让实验不再重复造轮子。</p>
+      <div class="proj-stack">
+        <span>Monorepo</span><span>pnpm</span><span>Electron</span><span>TypeScript</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">05</div>
+      <div class="proj-cat">GAME LAUNCHER</div>
+      <div>Galgme · 启动器 · 收藏夹</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小宣启动器</h3>
+      <p class="proj-desc">一个为 Galgame 玩家准备的轻量启动器。统一管理游戏库、自动读取存档、聚合补丁信息——丢掉那一堆混乱的桌面快捷方式。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>React</span><span>Node FS</span><span>IPC</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">06</div>
+      <div class="proj-cat">MCP · PROTOCOL</div>
+      <div>工具暴露 · 标准化 · Agent Ready</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小宣 MCP 服务器</h3>
+      <p class="proj-desc">为自家 AI 桌面产品设计的 MCP (Model Context Protocol) 服务器。负责把本地能力以标准化方式暴露给上层模型——让 Agent 真的能"动手"。</p>
+      <div class="proj-stack">
+        <span>Node.js</span><span>MCP Protocol</span><span>JSON-RPC</span><span>Tool Bridge</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">07</div>
+      <div class="proj-cat">CHAT · MESSENGER</div>
+      <div>聊天应用 · 群组 · 端对端</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">PiuPiu Desktop</h3>
+      <p class="proj-desc">一只"啾啾"命名的桌面聊天应用，轻量、跨平台、带群组与多媒体消息能力。专注本地优先的聊天体验。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>WebSocket</span><span>IndexedDB</span><span>React</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">08</div>
+      <div class="proj-cat">UTILITY · ARRANGEMENT</div>
+      <div>座位安排 · 拖拽 · 导出</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">SeatMaster Pro</h3>
+      <p class="proj-desc">为活动、会议、婚宴设计的座位安排工具。拖拽式操作、可视化布局、一键导出 PDF——把繁琐的"排座位"变成五分钟的活。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>Canvas</span><span>PDF Export</span><span>Vue</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">09</div>
+      <div class="proj-cat">AI · NOVEL · CREATION</div>
+      <div>长文 · 角色 · 大纲</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">小说公司 <em>·</em> xiaoxuan-qun</h3>
+      <p class="proj-desc">AI 辅助长篇小说创作平台。负责搭骨架的人设、世界观、大纲，与负责填血肉的章节续写模型协作——一个让 AI 真正参与"创作"的工坊。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>LLM</span><span>Tree Editor</span><span>RAG</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">10</div>
+      <div class="proj-cat">STUDY · AI TUTOR</div>
+      <div>学习系统 · 复习曲线 · 桌面端</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">ai-study-system</h3>
+      <p class="proj-desc">把 AI 引入学习流的桌面系统。整理笔记、生成抽认卡、按遗忘曲线安排复习，让"今天该学什么"由算法温柔地推给你。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>FSRS</span><span>LLM API</span><span>Markdown</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">11</div>
+      <div class="proj-cat">AI AGENT · DESKTOP</div>
+      <div>智能体 · 工具调用 · 本地优先</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">zxdex <em>·</em> 桌面智能体</h3>
+      <p class="proj-desc">面向桌面的"通用" AI 智能体。可以读取文件、调用工具、跑脚本，让大模型不只是聊天框，而是一双能动手的手。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>Function Calling</span><span>Tool Runtime</span><span>TypeScript</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">12</div>
+      <div class="proj-cat">MEDIA DOWNLOADER</div>
+      <div>视频 · 音频 · 桌面 GUI</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">zx-song <em>·</em> 影音下载</h3>
+      <p class="proj-desc">把"找资源—下资源—整理资源"做成一个优雅的桌面流程的视频/音频下载工具，附漂亮的 GUI 和批量队列。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>yt-dlp</span><span>FFmpeg</span><span>Queue</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">13</div>
+      <div class="proj-cat">STEAM TOOL · GUI</div>
+      <div>Steam · 工具 · 图形化</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">OpenSteamTool GUI</h3>
+      <p class="proj-desc">为 OpenSteamTool 系列工具定制的图形界面。让命令行玩家也能在鼠标点击中完成库存、备份、迁移等繁琐操作。</p>
+      <div class="proj-stack">
+        <span>Electron</span><span>Steam API</span><span>IPC</span><span>React</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">14</div>
+      <div class="proj-cat">EBOOK · READER</div>
+      <div>电子书 · 墨水屏 · 米坛</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">zhushou ebook</h3>
+      <p class="proj-desc">为小米手环 / 墨水屏设备打造的电子书助手。同步、格式转换、分章分发——把大部头小心地塞进小屏幕。</p>
+      <div class="proj-stack">
+        <span>Java</span><span>EPUB Parser</span><span>Quick App</span><span>米坛</span>
+      </div>
+      <a class="proj-link" href="https://www.bandbbs.cn/resources/6031/" target="_blank">米坛发布页 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">15</div>
+      <div class="proj-cat">FULLSTACK · MCD</div>
+      <div>FastAPI · Next.js · TypeScript</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">qingqian mcd</h3>
+      <p class="proj-desc">FastAPI + Next.js 打造的全栈应用。前后端类型同源，RESTful 设计到位，作为 Web 项目的代表作之一。</p>
+      <div class="proj-stack">
+        <span>Python</span><span>FastAPI</span><span>Next.js</span><span>TypeScript</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">16</div>
+      <div class="proj-cat">AI · SCREEN AGENT</div>
+      <div>屏幕控制 · 视觉理解</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">xuanxuan <em>·</em> 屏幕控制 AI 助手</h3>
+      <p class="proj-desc">用视觉模型看屏幕，用动作模型执行操作。让 AI 真正成为"看见你屏幕就能帮你做事"的桌面伙伴。</p>
+      <div class="proj-stack">
+        <span>Python</span><span>Computer Vision</span><span>PyAutoGUI</span><span>LLM</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">17</div>
+      <div class="proj-cat">REVERSE · TOOLING</div>
+      <div>逆向 · 工具集 · Python</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">逆向工具集</h3>
+      <p class="proj-desc">把逆向工程日常需要的小工具整合在一起——脱壳辅助、字符串提取、签名分析。一个顺手的小盒子。</p>
+      <div class="proj-stack">
+        <span>Python</span><span>Binary Analysis</span><span>PE/ELF</span><span>CLI</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj even">
+    <div class="proj-meta">
+      <div class="proj-num">18</div>
+      <div class="proj-cat">QUICK APP · WEARABLE</div>
+      <div>小米手环 9 · 快应用 · 中考</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">中考锦囊 <em>·</em> 中考助手</h3>
+      <p class="proj-desc">为小米手环 9 量身打造的快应用双胞胎，把中考倒计时、知识点速记、应急锦囊塞进 1.56 英寸的方寸之间。</p>
+      <div class="proj-stack">
+        <span>Quick App</span><span>Mi Band 9</span><span>JS</span><span>Local Storage</span>
+      </div>
+      <a class="proj-link" href="https://www.bandbbs.cn/resources/6031/" target="_blank">米坛发布页 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+  <article class="proj odd">
+    <div class="proj-meta">
+      <div class="proj-num">19</div>
+      <div class="proj-cat">WEB · VIDEO GEN</div>
+      <div>Node.js · 雷达 · 视频</div>
+    </div>
+    <div class="proj-card">
+      <h3 class="proj-name">radar-video-generator</h3>
+      <p class="proj-desc">基于 Node.js 的雷达风格视频生成器。把数据点丢进去，出来一段可以循环播放的赛博朋克短视频。</p>
+      <div class="proj-stack">
+        <span>Node.js</span><span>Canvas</span><span>FFmpeg</span><span>WebGL</span>
+      </div>
+      <a class="proj-link" href="https://github.com/zouyuxuan122" target="_blank">查看 <span class="arrow">→</span></a>
+    </div>
+  </article>
+
+</section>
+
+<!-- ABOUT / PHILOSOPHY -->
+<section class="about-section" id="about">
+  <div class="section-head reveal">
+    <div class="section-eyebrow">§02 — 自述 / PHILOSOPHY</div>
+    <h2 class="section-title">写 <em>能</em> 跑的诗。</h2>
+  </div>
+  <div class="about reveal">
+    <div class="about-text">
+      <p>
+        <span class="accent">Nefert</span> 写代码，喜欢把东西放在该放的地方——
+        视觉小说、桌面伴侣、小工具、给手环用的快应用。
+      </p>
+      <p>
+        不是一个"全栈工程师"那种整齐的人，更像一个在凌晨四点
+        仍然想把一个按钮的悬停动画再调 2px 的人。
+        相信细节、相信节奏、相信<em>作品</em>大于<em>简历</em>。
+      </p>
+      <p>
+        偶尔在 爱发电 上接一些外包养爱好，长期在 GitHub
+        上把一些东西丢出来看有没有人愿意一起玩。
+      </p>
+    </div>
+    <div class="about-visual">
+      <span class="lbl">N · 0.618 · ∞</span>
+      <span class="lblr">LAT 39.9° N / LON 116.4° E</span>
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ff2e63"/>
+            <stop offset="60%" stop-color="#b967ff"/>
+            <stop offset="100%" stop-color="#08f7fe"/>
+          </radialGradient>
+        </defs>
+        <circle cx="100" cy="100" r="92" stroke="rgba(245,245,247,.15)" stroke-width=".5"/>
+        <circle cx="100" cy="100" r="70" stroke="rgba(245,245,247,.15)" stroke-width=".5"/>
+        <circle cx="100" cy="100" r="48" stroke="rgba(245,245,247,.15)" stroke-width=".5"/>
+        <circle cx="100" cy="100" r="26" stroke="rgba(245,245,247,.15)" stroke-width=".5"/>
+        <path d="M100 8 L100 192 M8 100 L192 100 M30 30 L170 170 M170 30 L30 170" stroke="rgba(245,245,247,.08)" stroke-width=".5"/>
+        <circle cx="100" cy="100" r="14" fill="url(#g1)"/>
+        <circle cx="100" cy="8" r="3" fill="#08f7fe"/>
+        <circle cx="192" cy="100" r="3" fill="#ff2e63"/>
+        <circle cx="100" cy="192" r="3" fill="#b967ff"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section class="about-section" id="stack" style="padding-top:0">
+  <div class="section-head reveal">
+    <div class="section-eyebrow">§03 — 调色盘 / STACK</div>
+    <h2 class="section-title">用过的 <em>工具们</em>。</h2>
+  </div>
+  <div class="stack-cloud reveal">
+    <span>Electron</span><span>TypeScript</span><span>React</span><span>Vue</span>
+    <span>Node.js</span><span>Python</span><span>FastAPI</span><span>Next.js</span>
+    <span>SQLite</span><span>IndexedDB</span><span>PostgreSQL</span><span>Redis</span>
+    <span>WebGL</span><span>Three.js</span><span>GLSL</span><span>Canvas</span>
+    <span>FFmpeg</span><span>yt-dlp</span><span>PyAutoGUI</span><span>OpenCV</span>
+    <span>LLM SDK</span><span>MCP</span><span>RAG</span><span>Function Calling</span>
+    <span>Quick App</span><span>Java</span><span>Rust</span><span>Docker</span>
+    <span>Git</span><span>Vite</span><span>Webpack</span><span>pnpm</span>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact" id="contact">
+  <div class="section-head reveal" style="margin-bottom:3rem">
+    <div class="section-eyebrow">§04 — 频道 / CHANNELS</div>
+    <h2 class="section-title" style="grid-column:1/-1;text-align:center">一起 <em>做</em> 点什么？</h2>
+  </div>
+  <h2 class="reveal">SAY <em>HELLO</em> →</h2>
+  <div class="contact-links reveal">
+    <a href="https://github.com/zouyuxuan122" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.7 5.5.7 11.8c0 5 3.2 9.2 7.7 10.7.6.1.8-.2.8-.6v-2c-3.1.7-3.8-1.5-3.8-1.5-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 1.7 2.6 1.2 3.3.9.1-.7.4-1.2.7-1.5-2.5-.3-5.1-1.3-5.1-5.6 0-1.2.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2.9-.3 1.9-.4 2.9-.4s2 .1 2.9.4c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.6 5.3-5.1 5.6.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.5-1.5 7.7-5.7 7.7-10.7C23.3 5.5 18.3.5 12 .5z"/></svg>
+      GITHUB
+    </a>
+    <a href="https://www.ifdian.net/a/5201314zip" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z"/></svg>
+      爱发电 · 赞助
+    </a>
+    <a href="https://www.bandbbs.cn/resources/6031/" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="6"/><circle cx="12" cy="18" r="1.5" fill="currentColor"/></svg>
+      米坛 · 手环应用
+    </a>
+  </div>
+  <p class="reveal" style="font-family:var(--mono);font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);margin-bottom:2rem">
+    ※ 本站采用 3D 流体着色器背景 · 非线性滚动 · 推荐宽屏浏览
+  </p>
+</section>
+
+<footer>
+  <div class="pulse"><span class="dot"></span><span>SYSTEM ONLINE</span></div>
+  <div>© 2026 NEFERT · ALL ARTIFACTS SHIPPED WITH LOVE</div>
+  <div id="footer-time">--:--:-- CST</div>
+</footer>
+
+<!-- ============ 3D FLUID SHADER (WebGL) ============ -->
+<script id="fluidVS" type="x-shader/x-vertex">
+attribute vec2 aPosition;
+void main(){ gl_Position = vec4(aPosition, 0.0, 1.0); }
+</script>
+<script id="fluidFS" type="x-shader/x-fragment">
+precision highp float;
+uniform float uTime;
+uniform vec2 uRes;
+uniform vec2 uMouse;
+
+// --- 2D simplex-ish noise (cheap) ---
+vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+vec2 mod289(vec2 x){return x-floor(x*(1./289.))*289.;}
+vec3 permute(vec3 x){return mod289(((x*34.)+1.)*x);}
+float snoise(vec2 v){
+  const vec4 C=vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
+  vec2 i=floor(v+dot(v,C.yy));
+  vec2 x0=v-i+dot(i,C.xx);
+  vec2 i1=(x0.x>x0.y)?vec2(1.,0.):vec2(0.,1.);
+  vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1;
+  i=mod289(i);
+  vec3 p=permute(permute(i.y+vec3(0.,i1.y,1.))+i.x+vec3(0.,i1.x,1.));
+  vec3 m=max(.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.);
+  m=m*m; m=m*m;
+  vec3 x=2.*fract(p*C.www)-1.;
+  vec3 h=abs(x)-.5;
+  vec3 ox=floor(x+.5);
+  vec3 a0=x-ox;
+  m*=1.79284291400159-.85373472095314*(a0*a0+h*h);
+  vec3 g;
+  g.x=a0.x*x0.x+h.x*x0.y;
+  g.yz=a0.yz*x12.xz+h.yz*x12.yw;
+  return 130.*dot(m,g);
+}
+
+// fbm
+float fbm(vec2 p){
+  float v=0., a=.5;
+  for(int i=0;i<5;i++){ v+=a*snoise(p); p*=2.02; a*=.5; }
+  return v;
+}
+
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes.xy;
+  vec2 p = (gl_FragCoord.xy - 0.5*uRes.xy) / min(uRes.x, uRes.y);
+  float t = uTime * 0.08;
+
+  // mouse pull
+  vec2 m = (uMouse - 0.5*uRes.xy) / min(uRes.x, uRes.y);
+  m *= 0.6;
+
+  // domain warp
+  vec2 q;
+  q.x = fbm(p*1.4 + vec2(0.,t) + m*0.6);
+  q.y = fbm(p*1.4 + vec2(5.2,-t*1.1) - m*0.6);
+  vec2 r;
+  r.x = fbm(p*1.6 + 1.2*q + vec2(1.7,9.2) + t*0.5);
+  r.y = fbm(p*1.6 + 1.2*q + vec2(8.3,2.8) - t*0.5);
+  float f = fbm(p*1.8 + r*1.2);
+
+  // color palette (dark fluid / pink-cyan-violet)
+  vec3 c1 = vec3(0.02, 0.02, 0.04);  // deep
+  vec3 c2 = vec3(0.86, 0.10, 0.32);  // neon pink
+  vec3 c3 = vec3(0.03, 0.94, 0.99);  // cyan
+  vec3 c4 = vec3(0.72, 0.40, 1.00);  // violet
+
+  float n = f * 0.5 + 0.5;
+  vec3 col = mix(c1, c2, smoothstep(0.35, 0.85, n));
+  col = mix(col, c3, smoothstep(0.5, 1.0, length(q)*0.45));
+  col = mix(col, c4, smoothstep(0.6, 1.0, length(r)*0.35));
+
+  // glow near mouse — dim ember
+  float md = length(p - m);
+  col += vec3(0.10, 0.08, 0.14) * smoothstep(0.6, 0.0, md) * 0.5;
+
+  // vignette
+  float vig = smoothstep(1.2, 0.2, length(p));
+  col *= mix(0.55, 1.0, vig);
+
+  // grain
+  float g = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)) + t*0.01)*43758.5453);
+  col += (g - 0.5) * 0.012;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+/* =================== FLUID WEBGL =================== */
+(function(){
+  const canvas = document.getElementById('fluid-canvas');
+  const gl = canvas.getContext('webgl', {antialias:true, premultipliedAlpha:false});
+  if(!gl){ console.warn('No WebGL'); return; }
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.error(gl.getShaderInfoLog(s)); }
+    return s;
+  }
+  const vs = compile(gl.VERTEX_SHADER, document.getElementById('fluidVS').textContent);
+  const fs = compile(gl.FRAGMENT_SHADER, document.getElementById('fluidFS').textContent);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPosition');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uTime = gl.getUniformLocation(prog, 'uTime');
+  const uRes = gl.getUniformLocation(prog, 'uRes');
+  const uMouse = gl.getUniformLocation(prog, 'uMouse');
+
+  let mouseX = window.innerWidth*0.5, mouseY = window.innerHeight*0.5;
+  let tmouseX = mouseX, tmouseY = mouseY;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    gl.viewport(0,0,canvas.width,canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  window.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - rect.left) * (canvas.width/rect.width);
+    mouseY = (rect.height - (e.clientY - rect.top)) * (canvas.height/rect.height);
+  });
+  window.addEventListener('touchmove', e => {
+    if(!e.touches[0]) return;
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.touches[0].clientX - rect.left) * (canvas.width/rect.width);
+    mouseY = (rect.height - (e.touches[0].clientY - rect.top)) * (canvas.height/rect.height);
+  }, {passive:true});
+
+  const start = performance.now();
+  function frame(){
+    tmouseX += (mouseX - tmouseX) * 0.06;
+    tmouseY += (mouseY - tmouseY) * 0.06;
+    gl.uniform1f(uTime, (performance.now()-start)/1000);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform2f(uMouse, tmouseX, tmouseY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* =================== CUSTOM CURSOR =================== */
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let cx=0, cy=0, rx=0, ry=0, mx=0, my=0;
+window.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+function loopCursor(){
+  cx += (mx-cx)*0.9; cy += (my-cy)*0.9;
+  rx += (mx-rx)*0.45; ry += (my-ry)*0.45;
+  cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%,-50%)`;
+  ring.style.transform  = `translate(${rx}px, ${ry}px) translate(-50%,-50%)`;
+  requestAnimationFrame(loopCursor);
+}
+loopCursor();
+document.querySelectorAll('a, button, .proj-card, .proj-link').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cursor.classList.add('hover');ring.classList.add('hover');});
+  el.addEventListener('mouseleave',()=>{cursor.classList.remove('hover');ring.classList.remove('hover');});
+});
+
+/* =================== REVEAL ON SCROLL =================== */
+// stagger transition-delay per card so they feel "chained" as you scroll
+document.querySelectorAll('.proj').forEach((el, i) => {
+  el.style.transitionDelay = (i * 0.06) + 's';
+});
+
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  });
+},{threshold:.12, rootMargin:'0px 0px -60px 0px'});
+document.querySelectorAll('.reveal, .proj').forEach(el=>io.observe(el));
+
+/* =================== CLOCK =================== */
+function tick(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const t = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  document.getElementById('clock').textContent = t + ' CST';
+  document.getElementById('footer-time').textContent = t;
+}
+tick(); setInterval(tick, 1000);
+
+/* =================== SMOOTH ANCHOR =================== */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click', e=>{
+    const id = a.getAttribute('href');
+    if(id.length>1){
+      e.preventDefault();
+      document.querySelector(id)?.scrollIntoView({behavior:'smooth'});
+    }
+  });
+});
+</script>
+</body>
+</html>
